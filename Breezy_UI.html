@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instagram Reels Page</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        background-color: #000;
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .reels-container {
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+    }
+
+    .reel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+        background-color: black;
+    }
+
+    .reel video {
+        width: 100%;
+        height: 100%;
+        object-fit: scale-down;
+    }
+
+    .reel.active {
+        transform: translateY(0);
+    }
+
+    .reel.prev {
+        transform: translateY(-100%);
+    }
+
+    .reel.next {
+        transform: translateY(100%);
+    }
+
+    .error-message {
+        color: white;
+        font-size: 24px;
+        text-align: center;
+        position: absolute;
+    }
+</style>
+</head>
+<body>
+
+<div class="reels-container">
+    <div class="reel active" id="reel1">
+        <video src="video0.mp4" autoplay loop muted></video>
+        <div class="error-message">비디오 없음</div>
+    </div>
+</div>
+
+<script>
+    let reels = document.querySelectorAll('.reel');
+    let activeIndex = 0;
+    let isTransitioning = false;
+    let reelCount = reels.length;
+
+    // 초기 설정
+    updateReels(activeIndex);
+
+    // 비디오 로드 에러 처리
+    reels.forEach((reel) => {
+        const video = reel.querySelector('video');
+        const errorMessage = reel.querySelector('.error-message');
+
+        video.addEventListener('error', () => {
+            video.style.display = 'none';
+            errorMessage.style.display = 'block';
+        });
+
+        video.addEventListener('loadeddata', () => {
+            errorMessage.style.display = 'none';
+        });
+    });
+
+    // 릴스 업데이트 함수
+    function updateReels(index) {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        if (index === reels.length - 1) {
+            makeNewReel();
+        };
+        reels.forEach((reel, i) => {
+            if (i === index) {
+                reel.classList.add('active');
+                reel.classList.remove('prev', 'next');
+            } else if (i < index) {
+                reel.classList.add('prev');
+                reel.classList.remove('active', 'next');
+            } else {
+                reel.classList.add('next');
+                reel.classList.remove('active', 'prev');
+            }
+        });
+
+        // 애니메이션 종료 후 전환 상태 해제
+        setTimeout(() => {
+            isTransitioning = false;
+        }, 500);
+    }
+
+    // 릴스 전환 함수
+    function changeReel(direction) {
+        const newIndex = activeIndex + direction;
+        if (newIndex >= 0 && newIndex < reels.length) {
+            activeIndex = newIndex;
+            updateReels(activeIndex);
+        }
+        if (newIndex >= reels.length){
+            makeNewReel();
+            activeIndex = newIndex;
+            updateReels(activeIndex);
+        }
+    }
+    // 새 릴스 만드는 함수
+    function makeNewReel() {
+        // 새로운 비디오 URL 가져오기
+        const nextVideoUrl = "video"+(reelCount)+".mp4";
+
+        // 새로운 릴스 요소 생성
+        const newReel = document.createElement('div');
+        newReel.className = 'reel next';
+        newReel.dataset.index = reelCount;
+
+        // 비디오 요소 생성
+        const video = document.createElement('video');
+        video.src = nextVideoUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.style.width = "100%";
+        video.style.height = "100%";
+        video.style.objectFit = "scale-down";
+
+        // 비디오 로드 에러 처리
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.textContent = '비디오 없음'+reelCount;
+
+        video.addEventListener('error', () => {
+            video.style.display = 'none';
+            errorMessage.style.display = 'block';
+        });
+
+        video.addEventListener('loadeddata', () => {
+            errorMessage.style.display = 'none';
+        });
+
+        // 새로운 릴스에 비디오와 에러 메시지 추가
+        newReel.appendChild(video);
+        newReel.appendChild(errorMessage);
+
+        // 릴스 컨테이너에 새로운 릴스 추가
+        document.querySelector('.reels-container').appendChild(newReel);
+
+        // 릴스 목록 업데이트
+        reels = document.querySelectorAll('.reel');
+        reelCount++;
+    }
+
+    // 스크롤 이벤트 처리
+    window.addEventListener('wheel', (event) => {
+        if (isTransitioning) return;
+        if (event.deltaY > 0) {
+            changeReel(1);
+        } else {
+            changeReel(-1);
+        }
+    });
+
+    // 키보드 방향키 이벤트 처리
+    window.addEventListener('keydown', (event) => {
+        if (isTransitioning) return;
+        if (event.key === 'ArrowDown') {
+            changeReel(1);
+        } else if (event.key === 'ArrowUp') {
+            changeReel(-1);
+        }
+    });
+
+    // 터치 이벤트 처리 (모바일 환경 대응)
+    let startY = 0;
+    let endY = 0;
+
+    window.addEventListener('touchstart', (event) => {
+        startY = event.touches[0].clientY;
+    });
+
+    window.addEventListener('touchend', (event) => {
+        endY = event.changedTouches[0].clientY;
+        const diffY = startY - endY;
+        if (isTransitioning) return;
+        if (diffY > 50) {
+            changeReel(1);
+        } else if (diffY < -50) {
+            changeReel(-1);
+        }
+    });
+</script>
+
+</body>
+</html>
